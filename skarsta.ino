@@ -1,5 +1,6 @@
 #include <util/atomic.h> // For the ATOMIC_BLOCK macro
 #include <EEPROM.h>
+#include <EasyButton.h>
 
 // Motor driver pins
 #define ENCA 2 // YELLOW
