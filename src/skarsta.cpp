@@ -1,6 +1,7 @@
+#include <Arduino.h>
 #include <util/atomic.h> // For the ATOMIC_BLOCK macro
 #include <EEPROM.h>
-#include <EasyButton.h>
+#include <FreeButton.h>
 
 // Motor driver pins
 #define ENCA 2 // YELLOW
@@ -18,19 +19,38 @@
 #define SAVE3 12
 #define RESET 13
 
+void callBack();
+
+// Buttons.
+FreeButton upButton(UP);
+FreeButton downButton(DOWN);
+FreeButton save1Button(SAVE1);
+FreeButton save2Button(SAVE2);
+FreeButton save3Button(SAVE3);
+FreeButton resetButton(RESET);
+
+//Motor Drive Current Analog Pins
 #define RIS A3
 #define LIS A1
 
-const int SHORT_PRESS_TIME = 300; // 300 milliseconds
 const int LONG_PRESS_TIME = 2000; // 2 seconds
-
 
 int out1;
 int out2;
 long pre=-1;
 int direct=0;
-volatile long posi = 0; // specify posi as volatile: https://www.arduino.cc/reference/en/language/variables/variable-scope-qualifiers/volatile/
+volatile long posi = 0;
 bool newOpen=false;
+
+void readEncoder();
+void savePos1();
+void goUp();
+void goDown();
+void stopMotor();
+String buttonRead();
+void onPressedForDuration();
+void onPressed();
+int digiRead(int buttonPin);
 
 void setup() {
   Serial.begin(9600);
@@ -44,66 +64,45 @@ void setup() {
   digitalWrite(LEN,HIGH);
   attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
   
-  pinMode(UP,INPUT);
-  pinMode(DOWN,INPUT);
 
-  
+  // save3Button.begin();
+  // save3Button.onPressedFor(LONG_PRESS_TIME, onPressedForDuration);
+  resetButton.OnPressed(callBack);
+  // upButton.OnPressed(goUp);
+  // upButton.OnUnPressed(stopMotor);
+
   Serial.println("EEPROM.length():"+String(EEPROM.length()));
   newOpen=true;
 }
 
+void callBack(){
+  Serial.println("Called back");
+}
+
 void loop() {
-int uu = digitalRead(UP);
-if(uu==HIGH){
-  uu = digitalRead(UP);
-}
-
-int dd = digitalRead(DOWN);
-if(dd==HIGH){
-  dd = digitalRead(DOWN);
-}
-
-if(digitalRead(SAVE1)==HIGH){
-  Serial.println("SAVE1");
-  savePos1();
-}
-
-
-long ris=  (analogRead(RIS)/ 1023.0)*5000;
-long lis = (analogRead(LIS)/1023.0)*5000;
-
-if(uu==1 && dd==1){
-  Serial.println("DOUBLE");
-  direct=0;
-}
-else if(uu==1){
-  direct=1;
-}
-else if(dd==1){
-  direct=-1;
-}
-else{
-  direct=0;
-}
-
-
+  // buttonRead();
+  resetButton.Read();
+  // upButton.Read();
+    
+  
+  if(digitalRead(SAVE1)==HIGH && false){
+    Serial.println("SAVE1");
+    savePos1();
+  }
+    
+  long ris=  (analogRead(RIS)/ 1023.0)*5000;
+  long lis = (analogRead(LIS)/1023.0)*5000;
+  
   
   long pos = 0; 
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
     pos = posi;
   }
 
-  
-  byte pot =pos/2096;
-  if(pre!=pot){
-    Serial.println(pot);
-    pre=pot; 
-  }
-
   byte gotopos=0;
   EEPROM.get(0,gotopos);
   
-  if(gotopos>0 && newOpen){
+  if(gotopos>0 && newOpen && false){
     Serial.println("gotopos:"+String(gotopos));
     goDown();
     gotopos--;
@@ -113,15 +112,6 @@ else{
       newOpen=false;
   }
   
-  if(direct==1){
-    goUp();
-  }
-  else if(direct==-1){
-    goDown();
-  }
-  else{
-    stopMotor();
-  }
 }
 
 void readEncoder(){
@@ -170,8 +160,20 @@ int RESET_LAST_STATE=LOW;
 unsigned long RESET_PRESSED_TIME =0;
 
 String buttonRead(){
-  int SAVE2_CURRENT_STATE = digiRead(SAVE2);
-
+  int SAVE3_CURRENT_STATE = digiRead(SAVE3);
+  if(SAVE3_LAST_STATE==LOW && SAVE3_CURRENT_STATE==HIGH){
+    SAVE3_PRESSED_TIME=millis();
+    SAVE3_LAST_STATE=SAVE3_CURRENT_STATE;    
+  }
+  else if(SAVE3_LAST_STATE==HIGH && SAVE3_CURRENT_STATE==LOW){
+    unsigned long dif= millis()-SAVE3_PRESSED_TIME;
+    if(dif>LONG_PRESS_TIME)
+      Serial.println("Long press SAVE3");
+    Serial.println("dif:"+String(dif));
+    SAVE3_LAST_STATE=SAVE3_CURRENT_STATE;
+    SAVE3_PRESSED_TIME=0;
+  }
+  return " ";
 }
 
 
