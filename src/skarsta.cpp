@@ -65,11 +65,11 @@ void setup() {
   attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
   
 
-  // save3Button.begin();
-  // save3Button.onPressedFor(LONG_PRESS_TIME, onPressedForDuration);
+  save3Button.Read();
+  // save3Button.OnPressedForDuration(onPressedForDuration, LONG_PRESS_TIME);
   resetButton.OnPressed(callBack);
-  // upButton.OnPressed(goUp);
-  // upButton.OnUnPressed(stopMotor);
+  upButton.OnPressed(goUp);
+  upButton.OnUnPressed(stopMotor);
 
   Serial.println("EEPROM.length():"+String(EEPROM.length()));
   newOpen=true;
@@ -80,9 +80,13 @@ void callBack(){
 }
 
 void loop() {
-  // buttonRead();
+  buttonRead();
+  upButton.Read();
+  downButton.Read();
+  save1Button.Read();
+  save2Button.Read();
+  save3Button.Read();
   resetButton.Read();
-  // upButton.Read();
     
   
   if(digitalRead(SAVE1)==HIGH && false){
@@ -92,12 +96,20 @@ void loop() {
     
   long ris=  (analogRead(RIS)/ 1023.0)*5000;
   long lis = (analogRead(LIS)/1023.0)*5000;
+
+  // Serial.println("ris:");
+  // Serial.println(ris);
+  // Serial.println("lis:");
+  // Serial.println(lis);
+
   
   
   long pos = 0; 
   ATOMIC_BLOCK(ATOMIC_RESTORESTATE) {
     pos = posi;
   }
+
+
 
   byte gotopos=0;
   EEPROM.get(0,gotopos);
@@ -130,16 +142,19 @@ void savePos1(){
 }
 
 void goUp(){
+  Serial.println("goUp");
   analogWrite(LPWM,0);
   analogWrite(RPWM,255);
 }
 
 void goDown(){
+  Serial.println("goDown");
   analogWrite(LPWM,255);
   analogWrite(RPWM,0);
 }
 
 void stopMotor(){
+  Serial.println("stopMotor");
   analogWrite(RPWM,0);
   analogWrite(LPWM,0);
 }
