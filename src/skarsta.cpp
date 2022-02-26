@@ -1,6 +1,7 @@
 #include <Arduino.h>
 #include <EEPROM.h>
 #include <FreeButton.h>
+#include "TM1637.h"
 
 // Motor driver pins
 #define ENCA 2 // YELLOW
@@ -15,16 +16,17 @@
 #define DOWN 9 // RIGHT
 #define SAVE1 10
 #define SAVE2 11
-#define SAVE3 12
-#define RESET 13
+// #define RESET 12
+#define DIO 12
+#define CLK 13
 
 // Buttons.
 FreeButton upButton(UP);
 FreeButton downButton(DOWN);
 FreeButton save1Button(SAVE1);
 FreeButton save2Button(SAVE2);
-FreeButton save3Button(SAVE3);
-FreeButton resetButton(RESET);
+// FreeButton resetButton(RESET);
+TM1637 tm1637(CLK,DIO);
 
 //Motor Drive Current Analog Pins
 #define RIS A3
@@ -35,15 +37,17 @@ const int LONG_PRESS_TIME = 1000; // 1 seconds
 int out1;
 int out2;
 volatile long position = 0;
+int8_t TimeDisp[] = {0x00,0x00,0x00,0x00};
 
 void readEncoder();
 void savePosition1();
 void savePosition2();
-void savePosition3();
 void goUp();
 void goDown();
 void goTo1();
+void goTo2();
 void stopMotor();
+void writeLongIntoEEPROM(int address, long number);
 
 void setup() {
   Serial.begin(9600);
@@ -56,15 +60,22 @@ void setup() {
   digitalWrite(REN,HIGH);
   digitalWrite(LEN,HIGH);
   attachInterrupt(digitalPinToInterrupt(ENCA),readEncoder,RISING);
+
+  writeLongIntoEEPROM(0, 0);
+  writeLongIntoEEPROM(4, 0);
   
   upButton.OnPressed(goUp);
   upButton.OnUnPressed(stopMotor);
   downButton.OnPressed(goDown);
   downButton.OnUnPressed(stopMotor);
-  save1Button.OnPressed(goTo1);
+  save1Button.OnUnPressed(goTo1);
   save1Button.OnPressedForDuration(savePosition1,LONG_PRESS_TIME);
-  // save2Button.OnPressedForDuration(savePosition2,LONG_PRESS_TIME);
-  // save3Button.OnPressedForDuration(savePosition3,LONG_PRESS_TIME);
+  save2Button.OnUnPressed(goTo2);
+  save2Button.OnPressedForDuration(savePosition2,LONG_PRESS_TIME);
+
+
+  tm1637.set();
+  tm1637.init();
 }
 
 void callBack(){
@@ -80,8 +91,12 @@ void loop() {
   downButton.Read();
   save1Button.Read();
   save2Button.Read();
-  save3Button.Read();
-  resetButton.Read();
+  // resetButton.Read();
+  TimeDisp[0] = (position / 1000) % 10;
+  TimeDisp[1] = (position / 100) % 10;
+  TimeDisp[2] = (position / 10) % 10;
+  TimeDisp[3] = (position / 1) % 10;
+  tm1637.display(TimeDisp);
 }
 
 void writeLongIntoEEPROM(int address, long number)
@@ -110,27 +125,50 @@ void readEncoder(){
 }
 
 void savePosition1(){
-  Serial.println("position: "+ String(position));
+  Serial.println("position is saved for 1: "+ String(position));
   writeLongIntoEEPROM(0, position);
 }
-// void savePosition2(){
-//   EEPROM.write(1,position);
-// }
-// void savePosition3(){
-//   EEPROM.write(2,position);
-// }
+void savePosition2(){
+  Serial.println("position is saved for 2: "+ String(position));
+  writeLongIntoEEPROM(4, position);
+}
 
-void goTo1(){
-  long target = readLongFromEEPROM(0);
-  while(target!=position){
-    Serial.println("position: "+ String(position));
-    if(position<target){
-      goUp();
+void goTo(int q){
+  long target = readLongFromEEPROM(q);
+  Serial.println("target: "+ String(target));
+  int direction =0;
+  bool targetReached = false;
+  Serial.println("position: "+ String(position));
+  if(position<target && direction!=-1){
+    direction=1;
+    goUp();
+  }
+  else if(position>target && direction!=1){
+    direction=-1;
+    goDown();
+  }
+  else{
+    stopMotor();
+    targetReached = true;
+  }
+
+  while(!targetReached){
+    delay(10);
+    if(direction==1 && position>target){
+      targetReached=true;
     }
-    else if(position>target){
-      goDown();
+    else if(direction==-1 && position<target){
+      targetReached=true;
     }
   }
+  stopMotor();
+}
+
+void goTo1(){
+  goTo(0);
+}
+void goTo2(){
+  goTo(4);
 }
 
 void goUp(){
