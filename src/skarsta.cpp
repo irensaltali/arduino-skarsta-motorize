@@ -37,7 +37,6 @@ const int LONG_PRESS_TIME = 1000; // 1 seconds
 int out1;
 int out2;
 volatile long position = 0;
-int8_t TimeDisp[] = {0x00,0x00,0x00,0x00};
 
 void readEncoder();
 void savePosition1();
@@ -92,11 +91,11 @@ void loop() {
   save1Button.Read();
   save2Button.Read();
   // resetButton.Read();
-  TimeDisp[0] = (position / 1000) % 10;
-  TimeDisp[1] = (position / 100) % 10;
-  TimeDisp[2] = (position / 10) % 10;
-  TimeDisp[3] = (position / 1) % 10;
-  tm1637.display(TimeDisp);
+  tm1637.display(0,'S');
+  tm1637.display(1,'E');
+  tm1637.display(2,'T');
+  tm1637.display(3,1);
+  tm1637.writeByte(0x40);
 }
 
 void writeLongIntoEEPROM(int address, long number)
@@ -187,4 +186,12 @@ void stopMotor(){
   Serial.println("stopMotor");
   analogWrite(RPWM,0);
   analogWrite(LPWM,0);
+}
+
+
+void displayNumber(int num){   
+    tm1637.display(3, num % 10);   
+    tm1637.display(2, num / 10 % 10);   
+    tm1637.display(1, num / 100 % 10);   
+    tm1637.display(0, num / 1000 % 10);
 }
